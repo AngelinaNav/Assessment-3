@@ -1,0 +1,394 @@
+---
+title: "Business Report"
+output: html_document
+fontsize: 11pt
+authors: "Angelina Navitskaya/s4647285 and Deeksha Thakur/s4665507"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# EXECUTIVE SUMMARY
+
+The main **objective** of this report is to **provide information to our client Mark Peterson about wine ratings** and whether it is a suitable business for him to invest in. In addition to this, more practical insights are provided regarding Wine and its origin, price, variety and ratings.
+
+Report includes **the dataset with 130,000 observations of wine and 14 different variables per each observation** which is considered sufficient for analysing and predicting the outcomes.
+
+**Business problem** refers to **the prediction of wine quality based on different characteristics of wine**.
+
+**Outcomes of Descriptive Analysis:**
+
+We  have found out that the top-5 wine-producing countries are ***the US, France, Italy, Spain and Portugal***. Along with this, information about most reviewed wine varieties is also provided in this report. As per the graphical representation,the relation b/w Price of a wine bottle and no. of awarded points is **positive** because of the upward slope of the line.
+
+**Model Accuracy:**
+
+**Model 1** that is build to predict wine ratings (in points) by knowing the price, wine variety and country using Linear Regression Model turned out to be **not accurate** since its p-value varies from one country to another plus its residual values are also far from being near zero.
+
+**Model 2** that is build for prediction of a country based on an average rating of wine produced in that country using Classification Model shows an OOB estimate error of about 39.3%. Therefore, further research should be done to improve the accuracy of the model. 
+
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+
+# INTRODUCTION
+
+The term **Wine** has taken significant place in the market nowadays. All the consumers, wine producers, writers, editors, bloggers, restaurants use a specific rating criteria to decide which wine to purchase and which wine to leave on the shelf. Experiments on wine production have been carried out and it is found that taste of wine is affected by various factors such as water, temperature,vnature of soil,vvweather,vmineral compositions etc.,hence wine production is pretty difficult and time-consuming process since wine acquires a specific taste only after its maturity which usually takes up to 20 years of time period. That is why, ***older the wine is, more expensive it becomes***. So, its important for stakeholders to get a better understanding of wine market influencing factors before making any business decisions. 
+
+In this report, main focus is being made on the different varieties of wine and its ratings depending upon various factors such as price, country of origin,grape type and many more.
+
+**CASE STUDY**- Mark Peterson is an investor and entrepreneur who is seeking an opportunity to invest in fine wines. He wants to customize his wine investment portfolio, but doesn’t have much experience with wine. He would like to know which countries to buy wines from, how to choose well-performing wines, wine varieties, etc. 
+
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+
+# BUSINESS PROBLEM
+
+This report will provide an insight about whether the quality of wine can be predicted from its characteristics or not and if we can predict wine quality(in points).
+
+***Major Question***: Can we predict the quality of a wine based on its characteristics? 
+
+**Sub-questions**:
+
+Q1. Can we predict wine ratings (in points) by knowing the price, wine variety and country?
+
+Q2. Can we predict a country based on the type of wine grape and average rating of wine produced in that country? 
+
+----------------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------------
+
+# ABOUT THE DATASET [Wine Ratings]
+
+The dataset consists of almost 130,000 wine review entries. Each entry contains 14 variables including the country of origin, the description of the wine, the designation that stands for the vineyard within the winery where the grapes are from, the number of points that corresponds to the quality of the wine (rated by WineEnthusiast), the cost for a bottle of wine, the province or state the wine is from, the region, the name of a reviewer, the title of the wine, the grape type and the name of the winery that made the wine. 
+
+## Loading the dataset 
+
+```{r}
+library(tidyverse)
+
+wine_ratings <- readr::read_csv("https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-05-28/winemag-data-130k-v2.csv")
+```
+
+## Data Cleansing
+
+Before performing data analysis, all "character" variables should be converted into "factor".
+
+```{r}
+wine_ratings <- wine_ratings %>%
+  mutate_if(is.character, factor)
+```
+
+To ensure that the variables were converted, skim() function is used. 
+
+```{r}
+library(skimr)
+
+skim(wine_ratings)
+```
+
+Let's remove duplicates from the dataset based on the title of the wine.
+
+```{r}
+library(dplyr)
+
+wine_ratings <- distinct(wine_ratings, title,  .keep_all = TRUE)
+```
+
+The variables 'designation', 'region_1', 'region_2', 'taster_name' and 'taster_twitter_handle' won't be used in the data analysis due to a significant number of missing values. 
+
+```{r}
+wine_ratings <- wine_ratings %>% 
+  select(-designation, -region_1, -region_2, -taster_name, -taster_twitter_handle)
+```
+
+It is important that the 'country' variable does not have any missing values, filter() is used. 
+
+```{r}
+wine_ratings <-wine_ratings %>%
+  filter(!is.na(country))
+```
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+# DESCRIPTIVE or EXPLORATORY ANALYSIS
+
+
+```{r}
+wine_ratings %>%
+  count(points)
+```
+
+## How many countries are in the dataset? TOP-5?
+
+```{r}
+wine_ratings %>%
+  count(country, sort = TRUE)
+
+wine_ratings %>%
+  mutate(country = fct_lump(country,5)) %>%
+  ggplot(aes(country)) +
+  geom_bar(fill = "darkred") +
+  labs(x = "Country", y = "Number of Wine Reviews", 
+       title = "Countries with Most Wine Reviews")
+```
+
+There are 44 countries represented in the dataset. TOP-5 wine-producing countries are ***the US, France, Italy, Spain and Portugal***. The US, however, has the most wine reviews in this dataset - 41.9% of the total number of the reviews. This can be explained by the fact that the data is scraped from [WineEnthusiast](https://www.wineenthusiast.com/about-us-company-history) - a U.S. based multi-channel marketer. 
+
+## What are the TOP-10 most reviewed grape varieties? 
+
+```{r}
+wine_ratings %>%
+  count(variety, sort = TRUE)
+
+wine_ratings %>%
+  filter(!is.na(variety)) %>%
+  mutate(variety = fct_lump(variety, 10)) %>%
+  ggplot(aes(variety)) +
+  geom_bar(fill = "darkgreen") +
+  coord_flip() +
+  labs(x = "Type of Wine Grape", y = "Count", 
+       title = "Most Reviewed Wine Types")
+```
+The dataset has several hundred of fairly-common varietals and some less known niche types. Pinot Noir, Chardonnay and Cabernet Sauvignon are defined to be the most popular wine varieties. Other popular wine grapes include Red Blend, Bordeaux-style Red Blend, Riesling, Sauvignon Blanc, Syrah, Rose and Merlot.
+
+## What is a wine price range? 
+
+```{r}
+wine_ratings %>%
+  filter(price <=400) %>%
+  ggplot(aes(price)) +
+  geom_histogram(fill = "#DA9101") +
+  scale_x_log10() +
+  labs(x = "Price per Bottle of Wine", y = "Count", 
+       title = "Wine Price Distribution")
+```
+
+We removed some extreme values and limited the wine bottle price to 400 dollars. According to the Histogram, 'price' seems to be normally distributed. Most of the wines are in the price range between 40 and 120 dollars. The price of a bottle of wine is generally low, which suggests that almost any household can afford to buy it. 
+
+## What is the relation between the price for a bottle of wine and the number of awarded points?
+
+```{r}
+wine_ratings %>%
+  ggplot(aes(price, points)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  scale_x_log10() +
+   labs(x = "Price per Bottle of Wine", y = "Points")
+```
+
+The analysis of the relation between the wine price and awarded number of points showed that wine below $ 10 is unlikely to score more than 85 points, while wine with the price range of $ 800-1000 is likely to receive 95+ points. However, there are many of the wines in the $10 to $100 range that still have “Excellent” ratings of 90 and above within reach. The slope of the line shows a positive relation between the price for a bottle of wine and the number of awarded points.
+
+WineEnthusiast.com says that tastings are conducted blind or in accordance with accepted industry practices, and price is not a factor in assigning scores to wines. 
+
+## What is the distribution of various quality categories in each country?
+
+For further analysis, we have to categorize the wines into more defined wine priced categories. The “points” variable has 21 values ranging from 80 to 100. Using 4-point measurement scale we created 5 categories:
+
+1 - [97-100] - Classic. One of the greatest.
+2 - [93-96]  - Superb. Extremely well made and highly recommended.
+3 - [89-92]  - Excellent. May offer outstanding value if the price is right.
+4 - [85-88]  - Very good. Wine with special qualities.
+5 - [80-84]  - Good. Solid wine, suitable for everyday consumption.
+
+```{r}
+wine_ratings <- wine_ratings %>% 
+    mutate(category = as.factor(case_when(points > 96 ~ "1",
+                              points > 92 ~ "2",   
+                              points > 88 ~ "3",   
+                              points > 84 ~ "4",   
+                              points >= 80 ~ "5"))) %>%
+   mutate_if(is.character, factor)
+```
+
+
+```{r}
+wine_ratings %>%
+  mutate(country = fct_lump(country, 15)) %>%
+  ggplot(aes(country,fill = category)) +
+  geom_bar() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, line=2.5)) +
+  labs(x = "Country", y = "Count", fill = "Category")
+```
+The US, France and Italy have the largest quantity of wines Category 1,2 and 3, and therefore could me the main focus of Mark Peterson when customizing According to the graph, the US, France and Italy have the largest quantity of wines Category 1,2 and 3, and therefore could me the main focus of Mark Peterson when customizing his fine wine investment portfolio.
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+# PREDICTIVE ANALYSIS 
+
+## Model 1: Predict wine ratings (in points) by knowing the price, wine variety and country using Linear Regression Model
+
+### Step 1: Splitting the dataset into Training & Testing datasets
+
+```{r}
+library(tidymodels)
+
+wine_ratings_split <- initial_split(wine_ratings)
+wine_ratings_train <- training(wine_ratings_split)
+wine_ratings_test <- testing(wine_ratings_split)
+```
+
+### Step 2: Pre-processing the data
+
+#### 2.1 Setting the recipe & getting the ingredients - recipe()
+
+For this modelling, we will use 4 variables from the dataset. 
+
+Since we are predicting wine ratings (in points), points is our **Output variable** and the others are **Input variables**. 
+
+```{r}
+wine_ratings_recipe1 <- recipe(points ~ price + country + variety, data = wine_ratings_train)
+
+summary(wine_ratings_recipe1)
+```
+
+#### 2.2 Writing the recipe steps - step_xxx()
+
+To ensure the "quality" of data, it should be normalized by "Centering" & "Scalling" - [step_center() & step_scale()]; numeric variables that are closely related should also be removed - [step_corr()].
+
+```{r}
+wine_ratings_recipe1 <- wine_ratings_recipe1 %>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes()) %>%
+  step_corr(all_numeric())
+```
+
+#### 2.3 Getting ready with the prep - prep()
+
+```{r}
+wine_ratings_prep1 <- prep(wine_ratings_recipe1, training = wine_ratings_train)
+```
+
+#### 2.4 Baking the recipe - bake()
+
+```{r}
+wine_ratings_bake1 <- bake(wine_ratings_prep1, wine_ratings_train)
+```
+
+### Step 3: Building a model 
+
+For this modelling, our Output variable is **Numeric**. Therefore, we'll be using **Linear Regression Modelling**
+
+```{r}
+model1 <- lm(points ~ price + country + variety, data = wine_ratings_bake1)
+
+summary(model1)
+```
+
+### Step 4: Evaluating the model 
+
+**P-value** of the coefficients shows how significant the variable is. *** means that the 'price' predictor is very meaningful for our model. However, P-value varies from country to country from no * (not meaningful) to *** (very meaningful). 
+
+**Residuals**: the sum equals to -82.435, which is very far from being close to 0. It means that there's a significant difference between the real and predicted values, and model is not accurate.
+
+Adjusted **R-squared** equals to 0.2532, which means the model explains only 25% of the data variability. 
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+## Model 2: Predict a country based on the type of wine grape and average rating of wine produced in that country using Classification Model - 'randomForest'
+
+### Because the model cannot handle categorical predictors with more than 53 categories, we need to use fct_lump() to choose 50 categories of the "variety" variable that is used in this model.
+
+```{r}
+wine_ratings <- wine_ratings %>%
+  mutate(variety = fct_lump(variety, 50))
+```
+
+### Step 1: Splitting the dataset into Training & Testing datasets
+
+```{r}
+wine_ratings_split <- initial_split(wine_ratings)
+wine_ratings_train <- training(wine_ratings_split)
+wine_ratings_test <- testing(wine_ratings_split)
+```
+
+### Step 2: Pre-processing the data
+
+#### 2.1 Setting the recipe & getting the ingredients - recipe()
+
+For this modelling, we will use 2 variables from the dataset. 
+
+Since we are predicting a country, country is our **Output variable** and the other variable is **Predictor**. 
+
+```{r}
+wine_ratings_recipe2 <- recipe(country ~ category + variety, data = wine_ratings_train)
+
+summary(wine_ratings_recipe2)
+```
+#### 2.2 Writing the recipe steps - step_xxx()
+
+To ensure the "quality" of data, it should be normalized by "Centering" & "Scalling" - [step_center() & step_scale()]; numeric variables that are closely related should also be removed - [step_corr()].
+
+```{r}
+wine_ratings_recipe2 <- wine_ratings_recipe2 %>%
+  step_center(all_numeric(), -all_outcomes()) %>%
+  step_scale(all_numeric(), -all_outcomes()) %>%
+  step_corr(all_numeric())
+```
+
+#### 2.3 Getting ready with the prep - prep()
+
+```{r}
+wine_ratings_prep2 <- prep(wine_ratings_recipe2, training = wine_ratings_train)
+```
+
+#### 2.4 Baking the recipe - bake()
+
+```{r}
+wine_ratings_bake2 <- bake(wine_ratings_prep2, wine_ratings_train)
+```
+
+### Step 3: Building a model 
+
+For this modelling our **Output** variable is a **Factor**. Therefore, we'll be using randomForest().
+
+```{r}
+library(randomForest)
+
+wine_ratings_bake2 <- droplevels(wine_ratings_bake2)
+
+model2 <- randomForest(country ~ category + variety, data = wine_ratings_bake2, na.action = na.omit)
+
+print(model2)
+```
+ 
+### Step 4: Evaluating the model 
+
+OOB estimate of error rate equals to correct predictions divided by total predictions multiplied by 100. In our case it's 39.3%, which is considered pretty high.
+
+-----------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------
+
+# FINDINGS & CONCLUSION
+
+As per the ***Descriptive Analysis***,we have these findings-
+
+1.TOP-5 wine-producing countries : ***the US, France, Italy, Spain and Portugal***
+
+2.Pinot Noir, Chardonnay and Cabernet Sauvignon turned out to be the most popular wine varieties. Other popular types of wine include Red Blend (6.8%), Bordeaux-style Red Blend (5.3%), Riesling (4%), Sauvignon Blanc (3.8%), Syrah (3.2%), Rose (2.7%) and Merlot (2.4%).
+
+3. Price of wine is normally distributed up to $400. Most of the wines are in the price range between 40 and 120 dollars.
+
+4. There is a positive relation between the price for a bottle of wine and the number of awarded points. In other words, the higher the price of a bottle of wine is, the more points is awarded.
+
+
+For ***Predictive Analysis***, we have found out-
+
+1.The first model designed to predict wine ratings (in points) by knowing the price, wine variety and country turned out to be ***not accurate***. It explains only 25% of the data variability. 
+
+2.Regarding the second model, a classification model, that was designed to predict a country based on the type of wine grape and average rating of wine produced in that country, showed an OOB estimate of error rate = 39.3%. For a good model it seems to be a quite high error-rate.
+
+
+One of the limitations of this dataset is that there are a lot more reviews for popular wine varietals (Pinot Noir, Chardonnay and Cabernet Sauvignon), and as a result, it is harder to build an accurate model for less popular types of wine. Another limitation is connected to the US having the highest level of reviewed wine, 42% of total number of reviews, due to the fact that data is derived from the US-based company. 
+
+-------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------------------------
+
+# RECOMMENDATIONS
+
+Running a linear regression to predict wine ratings (in points) off the price, wine variety and country resulted in an overall accuracy of only 25%. The classification model performed better resulting in 60% accuracy. In order to improve accuracy of the models, deeper analysis of additional classifiers can be run. For example, wine priced categories can be further defined. Descriptions of individual wines contain different descriptive words, and therefore, word analysis can be done to link these descriptive words together and come up with the model to classify them. 
+
+
+
+
